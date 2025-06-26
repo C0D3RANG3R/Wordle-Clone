@@ -1,39 +1,76 @@
-*{
-    background-color: #121213;
+:root {
+  --color-correct: #538d4e;
+  --color-present: #b59f3b;
+  --color-absent: #3a3a3c;
+  --color-bg: #121213;
+  --color-key: #818384;
+  --color-text: whitesmoke;
 }
-  
-  
-  
+
+* {
+  box-sizing: border-box;
+  background-color: var(--color-bg);
+}
+
+body {
+  margin: 0;
+  font-family: sans-serif;
+  color: var(--color-text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 h1 {
- text-align: center;
+  text-align: center;
+  margin: 1rem;
 }
 
 #game-board {
   display: flex;
   align-items: center;
   flex-direction: column;
-  
+}
+
+.letter-row {
+  display: flex;
 }
 
 .letter-box {
-  border: 1px solid #3A3A3C;
+  border: 1px solid var(--color-absent);
   border-radius: 3px;
   margin: 5px;
   font-size: 2.5rem;
   font-weight: 700;
-  vertical-align: middle;
   height: 3rem;
   width: 3rem;
   display: flex;
   justify-content: center;
   align-items: center;
   text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.filled-box {
+  border: 2px solid #565758;
+}
+
+.correct {
+  background-color: var(--color-correct) !important;
+  border-color: var(--color-correct) !important;
   color: white;
 }
 
-.letter-row {
-  display: flex;
-  
+.present {
+  background-color: var(--color-present) !important;
+  border-color: var(--color-present) !important;
+  color: white;
+}
+
+.absent {
+  background-color: var(--color-absent) !important;
+  border-color: var(--color-absent) !important;
+  color: white;
 }
 
 #keyboard-cont {
@@ -41,7 +78,6 @@ h1 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  
 }
 
 #keyboard-cont div {
@@ -49,19 +85,108 @@ h1 {
 }
 
 .second-row {
-  margin: 0.5 rem;
+  margin: 0.5rem;
 }
 
 .keyboard-button {
   font-size: 1rem;
-  padding: 1rem;
+  padding: 0;
+  margin: 3px;
+  height: 60px;
+  width: 43px;
+  border-radius: 5px;
+  background-color: var(--color-key);
+  color: var(--color-text);
   cursor: pointer;
   text-transform: uppercase;
   font-weight: bold;
-  margin: 3px ;
-  height: 60px;
-  border-radius: 5px;
-  background-color: #818384;
-  color: whitesmoke;
+  border: none;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
+.key-enter,
+.key-del {
+  width: 75px;
+}
+
+.keyboard-button:hover {
+  filter: brightness(1.1);
+}
+
+.keyboard-button:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 600px) {
+  .letter-box {
+    width: 2.2rem;
+    height: 2.2rem;
+    font-size: 1.5rem;
+  }
+
+  .keyboard-button {
+    width: 25px;
+    height: 35px;
+    font-size: 0.8rem;
+  }
+
+  .key-enter,
+  .key-del {
+    width: 50px;
+  }
+
+  h1 {
+    font-size: 1.2rem;
+  }
+}
+
+#play-again-btn {
+  display: none;
+  margin: 2rem auto;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: bold;
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+#play-again-btn:hover {
+  background-color: #1e8449;
+}
+
+@keyframes boardFadeOut {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+}
+
+@keyframes boardFadeIn {
+  0% {
+    transform: scale(1.1);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+#game-board.fade-out {
+  animation: boardFadeOut 300ms ease-in forwards;
+}
+
+#game-board.fade-in {
+  animation: boardFadeIn 300ms ease-out forwards;
+}

@@ -1,200 +1,180 @@
-import { WORDS } from "./words.js";
+import { WORDS } from './words.js';
 
 const NUMBER_OF_GUESSES = 6;
-let guessesRemaining = NUMBER_OF_GUESSES;
-let currentGuess = [];
-let nextLetter = 0;
-let rightGuessString = WORDS[Math.floor(Math.random() * WORDS.length)]
+const FLIP_MS = 350;
+const PAD_MS = 120;
+const WORD_SET = new Set(WORDS.map(w => w.toLowerCase()));
 
-console.log(rightGuessString)
+let guessesRemaining, currentGuess, nextLetter, answer;
 
-function initBoard() {
-    let board = document.getElementById("game-board");
+const palette = {
+  success: '#27ae60',
+  error:   '#e74c3c',
+  info:    '#f39c12'
+};
 
-    for (let i = 0; i < NUMBER_OF_GUESSES; i++) {
-        let row = document.createElement("div")
-        row.className = "letter-row"
-        
-        for (let j = 0; j < 5; j++) {
-            let box = document.createElement("div")
-            box.className = "letter-box"
-            row.appendChild(box)
-        }
+const boardEl      = document.getElementById('game-board');
+const playAgainBtn = document.getElementById('play-again-btn');
 
-        board.appendChild(row)
+const showToast = (text, type = 'info') =>
+  Toastify({
+    text,
+    duration: 3000,
+    gravity: 'top',
+    position: 'center',
+    style: {
+      background: palette[type] ?? '#333',
+      color: '#fff',
+      fontWeight: 'bold',
+      borderRadius: '8px'
     }
-}
+  }).showToast();
 
-function shadeKeyBoard(letter, color) {
-    for (const elem of document.getElementsByClassName("keyboard-button")) {
-        if (elem.textContent === letter) {
-            let oldColor = elem.style.backgroundColor
-            if (oldColor === '#538D4E') {
-                return
-            } 
+const initGame = () => {
+  guessesRemaining = NUMBER_OF_GUESSES;
+  currentGuess = [];
+  nextLetter = 0;
+  answer = WORDS[Math.floor(Math.random() * WORDS.length)].toLowerCase();
 
-            if (oldColor === '#B59F3B' && color !== '#538D4E') {
-                return
-            }
-
-            elem.style.backgroundColor = color
-            break
-        }
+  boardEl.innerHTML = '';
+  for (let r = 0; r < NUMBER_OF_GUESSES; r++) {
+    const row = document.createElement('div');
+    row.className = 'letter-row';
+    for (let c = 0; c < 5; c++) {
+      const box = document.createElement('div');
+      box.className = 'letter-box';
+      row.appendChild(box);
     }
-}
+    boardEl.appendChild(row);
+  }
 
-function deleteLetter () {
-    let row = document.getElementsByClassName("letter-row")[6 - guessesRemaining]
-    let box = row.children[nextLetter - 1]
-    box.textContent = ""
-    box.classList.remove("filled-box")
-    currentGuess.pop()
-    nextLetter -= 1
-}
+  document
+    .querySelectorAll('.keyboard-button')
+    .forEach(btn => btn.classList.remove('correct', 'present', 'absent'));
 
-function checkGuess () {
-    let row = document.getElementsByClassName("letter-row")[6 - guessesRemaining]
-    let guessString = ''
-    let rightGuess = Array.from(rightGuessString)
+  playAgainBtn.style.display = 'none';
+};
 
-    for (const val of currentGuess) {
-        guessString += val
+const resetGameAnimated = () => {
+  boardEl.classList.add('fade-out');
+  boardEl.addEventListener(
+    'animationend',
+    () => {
+      boardEl.classList.remove('fade-out');
+      initGame();
+      boardEl.classList.add('fade-in');
+      boardEl.addEventListener(
+        'animationend',
+        () => boardEl.classList.remove('fade-in'),
+        { once: true }
+      );
+    },
+    { once: true }
+  );
+};
+
+const deleteLetter = () => {
+  if (!nextLetter) return;
+  const row =
+    document.getElementsByClassName('letter-row')[NUMBER_OF_GUESSES - guessesRemaining];
+  const box = row.children[nextLetter - 1];
+  box.textContent = '';
+  box.classList.remove('filled-box');
+  currentGuess.pop();
+  nextLetter--;
+};
+
+const insertLetter = key => {
+  if (nextLetter === 5) return;
+  const row =
+    document.getElementsByClassName('letter-row')[NUMBER_OF_GUESSES - guessesRemaining];
+  const box = row.children[nextLetter];
+  box.textContent = key;
+  box.classList.add('filled-box');
+  currentGuess.push(key);
+  nextLetter++;
+};
+
+const scoreGuess = (guess, answerArr) => {
+  const result = Array(5).fill('absent');
+  const freq = {};
+  answerArr.forEach(ch => (freq[ch] = (freq[ch] || 0) + 1));
+
+  for (let i = 0; i < 5; i++) {
+    if (guess[i] === answerArr[i]) {
+      result[i] = 'correct';
+      freq[guess[i]]--;
     }
-
-    if (guessString.length != 5) {
-        toastr.error("Not enough letters!")
-        return
+  }
+  for (let i = 0; i < 5; i++) {
+    if (result[i] === 'absent' && freq[guess[i]] > 0) {
+      result[i] = 'present';
+      freq[guess[i]]--;
     }
+  }
+  return result;
+};
 
-    if (!WORDS.includes(guessString)) {
-        toastr.error("Word not in list!")
-        return
+const colourKey = (letter, state) => {
+  document.querySelectorAll('.keyboard-button').forEach(btn => {
+    if (btn.textContent.toLowerCase() === letter && !btn.classList.contains('correct')) {
+      btn.classList.remove('present', 'absent');
+      btn.classList.add(state);
     }
+  });
+};
 
-    
-    for (let i = 0; i < 5; i++) {
-        let letterColor = ''
-        let box = row.children[i]
-        let letter = currentGuess[i]
-        
-        let letterPosition = rightGuess.indexOf(currentGuess[i])
-        // is letter in the correct guess
-        if (letterPosition === -1) {
-            letterColor = '#3A3A3C'
-        } else {
-            // now, letter is definitely in word
-            // if letter index and right guess index are the same
-            // letter is in the right position 
-            if (currentGuess[i] === rightGuess[i]) {
-                // shade green 
-                letterColor = '#538D4E'
-            } else {
-                // shade box yellow
-                letterColor = '#B59F3B'
-            }
+const checkGuess = () => {
+  const rowIdx = NUMBER_OF_GUESSES - guessesRemaining;
+  const row = document.getElementsByClassName('letter-row')[rowIdx];
+  const guess = currentGuess.join('').toLowerCase();
 
-            rightGuess[letterPosition] = "#"
-        }
+  if (guess.length !== 5)      return showToast('⏳ Not enough letters!', 'info');
+  if (!WORD_SET.has(guess))    return showToast('⛔ Word not in list!', 'error');
 
-        let delay = 500 * i
-        setTimeout(()=> {
-            //flip box
-            animateCSS(box, 'flipInX')
-            //shade box
-            box.style.backgroundColor = letterColor
-            shadeKeyBoard(letter, letterColor)
-        }, delay)
-    }
+  const score = scoreGuess(currentGuess, [...answer]);
+  score.forEach((state, i) => {
+    const box    = row.children[i];
+    const letter = currentGuess[i];
+    setTimeout(() => {
+      box.classList.add(state);
+      colourKey(letter, state);
+    }, i * FLIP_MS);
+  });
 
-    if (guessString === rightGuessString) {
-        toastr.success("You guessed right! Game over!")
-        guessesRemaining = 0
-        return
+  setTimeout(() => {
+    if (guess === answer) {
+      showToast('🎉 You guessed right!', 'success');
+      playAgainBtn.style.display = 'block';
     } else {
-        guessesRemaining -= 1;
-        currentGuess = [];
-        nextLetter = 0;
+      guessesRemaining--;
+      currentGuess = [];
+      nextLetter = 0;
 
-        if (guessesRemaining === 0) {
-            toastr.error("You've run out of guesses! Game over!")
-            toastr.info(`The right word was: "${rightGuessString}"`)
-        }
+      if (!guessesRemaining) {
+        showToast(`💀 Game over! The word was "${answer.toUpperCase()}"`, 'error');
+        playAgainBtn.style.display = 'block';
+      }
     }
-}
+  }, 5 * FLIP_MS + PAD_MS);
+};
 
-function insertLetter (pressedKey) {
-    if (nextLetter === 5) {
-        return
-    }
-    pressedKey = pressedKey.toLowerCase()
-
-    let row = document.getElementsByClassName("letter-row")[6 - guessesRemaining]
-    let box = row.children[nextLetter]
-    animateCSS(box, "pulse")
-    box.textContent = pressedKey
-    box.classList.add("filled-box")
-    currentGuess.push(pressedKey)
-    nextLetter += 1
-}
-
-const animateCSS = (element, animation, prefix = 'animate__') =>
-  // We create a Promise and return it
-  new Promise((resolve, reject) => {
-    const animationName = `${prefix}${animation}`;
-    // const node = document.querySelector(element);
-    const node = element
-    node.style.setProperty('--animate-duration', '0.5s');
-    
-    node.classList.add(`${prefix}animated`, animationName);
-
-    // When the animation ends, we clean the classes and resolve the Promise
-    function handleAnimationEnd(event) {
-      event.stopPropagation();
-      node.classList.remove(`${prefix}animated`, animationName);
-      resolve('Animation ended');
-    }
-
-    node.addEventListener('animationend', handleAnimationEnd, {once: true});
+document.addEventListener('keyup', e => {
+  if (playAgainBtn.style.display === 'block') return;
+  const key = e.key;
+  if (key === 'Backspace') return deleteLetter();
+  if (key === 'Enter')     return checkGuess();
+  if (/^[a-z]$/i.test(key)) insertLetter(key.toLowerCase());
 });
 
-document.addEventListener("keyup", (e) => {
+document.getElementById('keyboard-cont').addEventListener('click', e => {
+  const btn = e.target;
+  if (!btn.classList.contains('keyboard-button')) return;
+  let key = btn.textContent;
+  if (key === 'Del') key = 'Backspace';
+  document.dispatchEvent(new KeyboardEvent('keyup', { key }));
+});
 
-    if (guessesRemaining === 0) {
-        return
-    }
+playAgainBtn.addEventListener('click', resetGameAnimated);
 
-    let pressedKey = String(e.key)
-    if (pressedKey === "Backspace" && nextLetter !== 0) {
-        deleteLetter()
-        return
-    }
-
-    if (pressedKey === "Enter") {
-        checkGuess()
-        return
-    }
-
-    let found = pressedKey.match(/[a-z]/gi)
-    if (!found || found.length > 1) {
-        return
-    } else {
-        insertLetter(pressedKey)
-    }
-})
-
-document.getElementById("keyboard-cont").addEventListener("click", (e) => {
-    const target = e.target
-    
-    if (!target.classList.contains("keyboard-button")) {
-        return
-    }
-    let key = target.textContent
-
-    if (key === "Del") {
-        key = "Backspace"
-    } 
-
-    document.dispatchEvent(new KeyboardEvent("keyup", {'key': key}))
-})
-
-initBoard();
+initGame();
